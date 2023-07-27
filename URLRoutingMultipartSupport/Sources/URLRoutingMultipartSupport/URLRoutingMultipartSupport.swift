@@ -57,7 +57,7 @@ extension Parsers {
         var body: some ParserPrinter<Data, [BodyPartData]> {
             Boundary(value: boundaryValue, type: .initial)
             Many {
-                BodyPart(boundary: .init(value: boundaryValue, type: .separator))
+                BodyPart(boundaryValue: boundaryValue)
             } separator: {
                 Boundary(value: boundaryValue, type: .separator)
             } terminator: {
@@ -68,12 +68,16 @@ extension Parsers {
     }
 
     struct BodyPart: ParserPrinter {
-        let boundary: Boundary
+        let boundaryValue: String
+
+        private var nextBoundaryValue: Data {
+            "\r\n--\(boundaryValue)".data(using: .utf8)!
+        }
 
         var body: some ParserPrinter<Data, BodyPartData> {
             Parse(.memberwise(BodyPartData.init)) {
                 PartHeaderFields()
-                Optionally { PrefixUpTo(boundary.dataValue) }
+                Optionally { PrefixUpTo(nextBoundaryValue) }
             }
         }
     }
@@ -192,23 +196,6 @@ extension Parsers {
         }
     }
 
-    struct PartHeaderFields: ParserPrinter {
-        var body: some ParserPrinter<Data, URLRequestData.Fields> {
-            Many {
-                PartHeaderLine()
-            } separator: {
-                Whitespace(2, .vertical).printing { _, data in
-                    data.prepend(contentsOf: "\r\n".data(using: .utf8)!)
-                }
-            } terminator: {
-                Whitespace(4, .vertical).printing { _, data in
-                    data.prepend(contentsOf: "\r\n\r\n".data(using: .utf8)!)
-                }
-            }
-            .map(HeadersToFields())
-        }
-    }
-
     /// Parses a request's body using a byte parser.
     public struct PartBody<Bytes: Parser>: Parser where Bytes.Input == Data {
         let bytesParser: Bytes
@@ -236,7 +223,7 @@ extension Parsers {
             self.bytesParser = Rest().replaceError(with: .init()).map(bytesConversion)
         }
 
-        /// Initializes a body parser that parses the body as data in its entirety.
+        /// Initializes a body parser that parses the the entire body's data as-is.
         public init() where Bytes == Parsers.ReplaceError<Rest<Bytes.Input>> {
             self.bytesParser = Rest().replaceError(with: .init())
         }
@@ -251,7 +238,24 @@ extension Parsers {
         }
     }
 
-    private struct PartHeaderLine: ParserPrinter {
+    struct PartHeaderFields: ParserPrinter {
+        var body: some ParserPrinter<Data, URLRequestData.Fields> {
+            Many {
+                PartHeaderLine()
+            } separator: {
+                Whitespace(2, .vertical).printing { _, data in
+                    data.prepend(contentsOf: "\r\n".data(using: .utf8)!)
+                }
+            } terminator: {
+                Whitespace(4, .vertical).printing { _, data in
+                    data.prepend(contentsOf: "\r\n\r\n".data(using: .utf8)!)
+                }
+            }
+            .map(HeadersToFields())
+        }
+    }
+
+    struct PartHeaderLine: ParserPrinter {
         private let separator = ": ".data(using: .utf8)!
         private let terminator = "\r\n".data(using: .utf8)!
 
@@ -326,6 +330,8 @@ extension Parsers.PartHeaders: ParserPrinter where FieldParsers: ParserPrinter {
 public typealias MultipartBody = Parsers.MultipartBody
 public typealias MultipartPart = Parsers.MultipartPart
 public typealias MultipartFormData = Parsers.MultipartFormData
+public typealias PartBody = Parsers.PartBody
+public typealias PartHeaders = Parsers.PartHeaders
 
 // MARK: - Internal
 
