@@ -7,6 +7,13 @@ import XCTest
 final class URLRoutingMultipartSupportTests: XCTestCase {
     enum MultipartRequests: Equatable {
         case twoTexts(String, String)
+        case fileUpload(FileUpload)
+    }
+
+    struct FileUpload: Equatable {
+        let mimeType: String
+        let fileName: String
+        let fileData: Data
     }
 
     // MARK: - Integration Tests
@@ -60,6 +67,50 @@ final class URLRoutingMultipartSupportTests: XCTestCase {
 
         let route = try routeParser.parse(request)
         XCTAssertEqual(route, MultipartRequests.twoTexts("This is some text", "This is some more text"))
+    }
+
+    func testMultipartRequestFileUploadExample() throws {
+        let requestBodyString = """
+        --abcde12345\r
+        Content-Disposition: form-data; name="image"; filename="image.jpg"\r
+        Content-Type: image/jpeg\r
+        \r
+        not really jpeg data\r
+        --abcde12345--\r
+
+        """
+
+        var request = URLRequestData()
+        request.path = ["multipart"]
+        request.method = "POST"
+        request.headers["Content-Type"] = ["multipart/form-data; boundary=abcde12345"]
+        request.body = requestBodyString.data(using: .utf8)!
+
+        let routeParser = Route(MultipartRequests.fileUpload) {
+            Path { "multipart" }
+            Method.post
+            MultipartBody(printBoundary: "abcde12345") {
+                MultipartPart(.memberwise(FileUpload.init)) {
+                    PartHeaders {
+                        Field("Content-Type", .string)
+                        Field("Content-Disposition") {
+                            MultipartFormData {
+                                Field("name") { "image" }
+                                Field("filename", .string)
+                            }
+                        }
+                    }
+                    PartBody()
+                }
+            }
+        }
+
+        let route = try routeParser.parse(request)
+        XCTAssertEqual(route, MultipartRequests.fileUpload(.init(
+            mimeType: "image/jpeg",
+            fileName: "image.jpg",
+            fileData: "not really jpeg data".data(using: .utf8)!
+        )))
     }
 
     // MARK: - Unit Tests

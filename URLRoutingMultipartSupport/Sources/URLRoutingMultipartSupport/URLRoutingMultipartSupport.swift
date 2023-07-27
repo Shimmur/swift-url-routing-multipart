@@ -173,6 +173,17 @@ extension Parsers {
             self.parsers = build()
         }
 
+        public init<C: Conversion, P: Parser>(
+            _ conversion: C,
+            @ParserBuilder<BodyPartData> with parsers: () -> P
+        )
+        where
+        P.Input == BodyPartData,
+        Parsers == Parsing.Parsers.MapConversion<P, C>
+        {
+            self.parsers = parsers().map(conversion)
+        }
+
         public func parse(_ input: inout ArraySlice<BodyPartData>) throws -> Parsers.Output {
             guard let part = input.first else {
                 throw MultipartParsingError("Expected at least one part")
