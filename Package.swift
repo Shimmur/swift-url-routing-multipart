@@ -18,16 +18,30 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/pointfreeco/swift-url-routing", from: "0.5.0"),
-        .package(url: "https://github.com/pointfreeco/swift-custom-dump", from: "0.10.2"),
-        .package(url: "https://github.com/pointfreeco/swift-parsing", from: "0.12.1")
+        .package(
+            url: "https://github.com/pointfreeco/swift-url-routing",
+            from: "0.5.0"
+        ),
+        .package(
+            url: "https://github.com/pointfreeco/swift-custom-dump",
+            from: "0.10.2"
+        ),
+        .package(
+            url: "https://github.com/pointfreeco/swift-parsing",
+            from: "0.12.1"
+        )
+        .package(
+            url: "https://github.com/apple/swift-collections",
+            from: "1.0.2"
+        ),
     ],
     targets: [
         .target(
             name: "URLRoutingMultipartSupport",
             dependencies: [
                 .product(name: "URLRouting", package: "swift-url-routing"),
-                .product(name: "Parsing", package: "swift-parsing")
+                .product(name: "Parsing", package: "swift-parsing"),
+                .product(name: "OrderedCollections", package: "swift-collections")
             ]
         ),
         .testTarget(
