@@ -29,11 +29,11 @@ let package = Package(
         .package(
             url: "https://github.com/pointfreeco/swift-parsing",
             from: "0.12.1"
-        )
+        ),
         .package(
             url: "https://github.com/apple/swift-collections",
             from: "1.0.2"
-        ),
+        )
     ],
     targets: [
         .target(
